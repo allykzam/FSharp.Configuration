@@ -300,10 +300,17 @@ module private TypesFactory =
             | [Some ty] -> elements, ty
             | [None] ->
                 // Sequence of maps: https://github.com/fsprojects/FSharp.Configuration/issues/51
-                // TODOL Construct the type from all the elements (instead of only the first entry)
-                let headChildren = match children |> Seq.head with Map m -> m | _ -> failwith "expected a sequence of maps."
+                // This builds up a list of all of the individual fields
+                // contained in each map, so that the final type definition for
+                // them will contain every field instead of just the ones for
+                // the first list entry.
+                let allChildren =
+                    children
+                    |> Seq.collect (fun x -> match x with Map m -> m | _ -> failwith "expected a sequence of maps.")
+                    |> Seq.distinctBy (fun (x,_) -> x)
+                    |> Seq.toList
 
-                let childTypes, childInits = foldChildren readOnly headChildren
+                let childTypes, childInits = foldChildren readOnly allChildren
                 let eventField, event = generateChangedEvent()
 
                 let mapTy = ProvidedTypeDefinition(name + "_Item_Type", Some typeof<obj>, HideObjectMethods = true,
