@@ -190,9 +190,9 @@ module private Parser =
                 let itemType = fieldType.GetGenericArguments().[0]
                 let updaters = makeListItemUpdaters itemType updaters
 
-                let oldValues, newValues =
-                    if isSortable then sort values, sort updaters
-                    else Seq.toList values, updaters
+                let oldValues, newValues = Seq.toList values, updaters
+                    //if isSortable then sort values, sort updaters
+                    //else Seq.toList values, updaters
 
                 return!
                     if not isSortable || oldValues <> newValues then
