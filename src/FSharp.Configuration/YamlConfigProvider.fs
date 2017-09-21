@@ -168,12 +168,19 @@ module private Parser =
             maybe {
                 let! field = tryGetField target ("_" + name)
                 let fieldType = inferListType field.FieldType updaters
-                
-                if field.FieldType <> fieldType then 
-                    failwithf "Cannot assign %O to %O." fieldType.Name field.FieldType.Name
-                
+
                 let isComparable (x: obj) = x :? Uri || x :? IComparable
-                let values = field.GetValue target :?> Collections.IEnumerable |> Seq.cast<obj>
+                let values =
+                    let baseValues = field.GetValue target :?> Collections.IEnumerable |> Seq.cast<obj>
+                    if fieldType <> typeof<ResizeArray<string>> && field.FieldType = typeof<ResizeArray<string>> then
+                        baseValues |> Seq.map (fun x -> x.ToString() |> box)
+                    elif fieldType = typeof<ResizeArray<int32>> && field.FieldType = typeof<ResizeArray<int64>> then
+                        baseValues |> Seq.map (fun x -> int64 |> box)
+                    elif fieldType <> field.FieldType then
+                        failwithf "Cannot assign %O to %O." fieldType.Name field.FieldType.Name
+                    else
+                        baseValues
+
                 // NOTE: another solution would be to make our provided type implement IComparable
                 // On the other side I'm not completely sure why we sort at all.
                 // What if the ordering of the item matters for the user?
@@ -187,7 +194,7 @@ module private Parser =
                        | x -> failwithf "%A is not comparable, so it cannot be included into a list."  x)
                     |> Seq.toList
 
-                let itemType = fieldType.GetGenericArguments().[0]
+                let itemType = field.FieldType.GetGenericArguments().[0]
                 let updaters = makeListItemUpdaters itemType updaters
 
                 let oldValues, newValues = Seq.toList values, updaters
@@ -196,7 +203,7 @@ module private Parser =
 
                 return!
                     if not isSortable || oldValues <> newValues then
-                        let list = makeListInstance fieldType itemType updaters
+                        let list = makeListInstance field.FieldType itemType updaters
                         field.SetValue(target, list)
                         Some (getChangedDelegate target)
                     else None
