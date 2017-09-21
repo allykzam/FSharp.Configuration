@@ -119,7 +119,14 @@ module ValueParser =
     let (|Bool|_|) = tryParseWith Boolean.TryParse
     let (|Int|_|) = tryParseWith Int32.TryParse
     let (|Float|_|) = tryParseWith (fun x -> Double.TryParse(x, NumberStyles.Any, CultureInfo.InvariantCulture))
-    let (|TimeSpan|_|) = tryParseWith (fun x -> TimeSpan.TryParse(x, CultureInfo.InvariantCulture))
+    let (|TimeSpan|_|) =
+        tryParseWith
+            (fun (x : string) ->
+                match x with
+                | null -> (false, Unchecked.defaultof<TimeSpan>)
+                | x when not (x.Contains ".") && not (x.Contains ":") -> (false, Unchecked.defaultof<TimeSpan>)
+                | _ -> TimeSpan.TryParse(x, CultureInfo.InvariantCulture)
+            )
     
     let (|DateTime|_|) =  
         tryParseWith (fun x -> DateTime.TryParse(x, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal))
